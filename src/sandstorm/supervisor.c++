@@ -1860,6 +1860,31 @@ private:
   uint32_t counter;
 };
 
+class TaskScheduler {
+ public:
+  TaskScheduler(kj::Timer& timer, SandstormCore::Client& coreCap, Supervisor::Client& mainCap)
+    : timer(timer), coreCap(coreCap), mainCap(mainCap) {}
+
+  kj::Promise<void> init() {
+    // Load tasks from core, restore them from the app's MainView, and schedule
+    // them to run later.
+    auto req = mainCap.getMainViewRequest();
+  }
+
+ private:
+  kj::Timer& timer;
+  SandstormCore::Client& coreCap;
+  Supervisor::Client& mainCap;
+};
+
+class ScheduledTaskSet: private kj::TaskSet::ErrorHandler {
+ public:
+
+ private:
+  kj::StringPtr grainId;
+  kj::TaskSet tasks;
+};
+
 class SupervisorMain::SandstormApiImpl final:
   public SandstormApi<>::Server, public kj::Refcounted, private kj::TaskSet::ErrorHandler  {
 public:
@@ -1980,6 +2005,16 @@ public:
     return req.send().then([context](auto args) mutable -> void {
       context.getResults().setId(args.getId());
     });
+  }
+
+  kj::Promise<void> scheduleAt(ScheduleAtContext context) override {
+    auto params = context.getParams();
+    auto callback = params.getCallback();
+    return kj::NEVER_DONE;
+  }
+
+  kj::Promise<void> schedulePeriodic(SchedulePeriodicContext context) override {
+    return kj::NEVER_DONE;
   }
 
 private:
@@ -2393,6 +2428,9 @@ kj::Promise<void> SupervisorMain::DefaultSystemConnector::run(
   Supervisor::Client mainCap = kj::heap<SupervisorImpl>(
       ioContext.unixEventPort, kj::mv(app), wakelockSet, kj::mv(startEventFd),
       coreCap, kj::addRef(*coreRedirector));
+
+  // Execute scheduled tasks.
+  TaskScheduler taskScheduler(ioContext.provider->getTimer(), coreCap, mainCap);
 
   auto acceptTask = systemConnector->run(ioContext, kj::mv(mainCap), kj::mv(coreRedirector));
 

@@ -127,7 +127,7 @@ interface SandstormApi(AppObjectId) {
   # future transition to a model where identity IDs are not globally stable and each grain has a
   # separate (possibly incompatible) map from identity ID to account ID.
 
-  scheduleAt @11 (when :Util.DateInNs, callback :Util.Runnable, slack :Util.DurationInNs = 0)
+  scheduleAt @11 (when :Util.DateInNs, callback :PersistentRunnable, slack :Util.DurationInNs = 0)
               -> (handle :Util.Handle);
   # Schedule a callback to be called at a specific time.
   #
@@ -153,7 +153,7 @@ interface SandstormApi(AppObjectId) {
   # grain for some reason, the callback will be retried. After a limited number of failed retries,
   # Sandstorm may alert the owner to a problem and stop retrying.
 
-  schedulePeriodic @12 (period :SchedulingPeriod, callback :Util.Runnable)
+  schedulePeriodic @12 (period :SchedulingPeriod, callback :PersistentRunnable)
                     -> (handle :Util.Handle);
   # Schedule a callback to be called on a regular interval.
   #
@@ -716,6 +716,11 @@ interface AppPersistent @0xaffa789add8747b8 (AppObjectId) {
   # TODO(cleanup): How does `label` here relate to `PowerboxDisplayInfo` on `offer()` and
   #   `fulfillRequest()`? Maybe `label` here should actually be `PowerboxDisplayInfo` and those
   #   other methods shouldn't take that parameter?
+}
+
+interface PersistentRunnable(AppObjectId) extends (AppPersistent(AppObjectId), Util.Runnable) {
+  # A Runnable that can be saved and restored across app restarts, to implement
+  # scheduleAt and schedulePeriodic.
 }
 
 interface MainView(AppObjectId) extends(UiView) {
